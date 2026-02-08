@@ -7,6 +7,8 @@ Scans from the root directory (/) recursively.
 import os
 from collections import defaultdict
 from datetime import datetime
+from pathlib import Path
+home = Path.home()
 
 def _is_excluded(path, exclude_paths):
     for excluded in exclude_paths:
@@ -120,7 +122,7 @@ if __name__ == "__main__":
         exclude_paths = [
             "/usr/bin",
         ]
-        files_dict = scan_filesystem("/Users/jakob.kusnick", exclude_paths=exclude_paths)
+        files_dict = scan_filesystem(home, exclude_paths=exclude_paths)
         print_summary(files_dict)
 
         files_sorted = sort_files_by_size(files_dict, descending=True)
