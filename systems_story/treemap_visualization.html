@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Storage Treemap</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: #f5f5f5;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .controls {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .controls label {
+            margin-right: 10px;
+            font-weight: 500;
+        }
+
+        .controls input[type="file"] {
+            padding: 5px;
+        }
+
+        #treemap {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin: 0 auto;
+        }
+
+        .node {
+            border: 1px solid white;
+            box-sizing: border-box;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .node:hover {
+            opacity: 0.8;
+        }
+
+        .node-label {
+            padding: 4px;
+            font-size: 11px;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            pointer-events: none;
+        }
+
+        #tooltip {
+            position: absolute;
+            padding: 12px;
+            background-color: rgba(0, 0, 0, 0.9);
+            color: white;
+            border-radius: 4px;
+            pointer-events: none;
+            font-size: 13px;
+            display: none;
+            max-width: 300px;
+            z-index: 1000;
+        }
+
+        #stats {
+            text-align: center;
+            margin-top: 20px;
+            padding: 15px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            max-width: 800px;
+            margin: 20px auto;
+        }
+
+        #stats p {
+            margin: 5px 0;
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+    <h1>📊 File Storage Treemap Visualization</h1>
+    
+    <div class="controls">
+        <label for="fileInput">Load JSON File:</label>
+        <input type="file" id="fileInput" accept=".json">
+    </div>
+
+    <div id="stats"></div>
+    <div id="treemap"></div>
+    <div id="tooltip"></div>
+
+    <script>
+        const width = Math.min(1400, window.innerWidth - 40);
+        const height = 800;
+
+        const svg = d3.select("#treemap")
+            .append("svg")
+            .attr("width", width)
+            .attr("height", height);
+
+        const tooltip = d3.select("#tooltip");
+
+        // Color scale
+        const colorScale = d3.scaleOrdinal()
+            .domain(['image', 'video', 'document', 'code', 'archive', 'audio', 'other'])
+            .range(['#e74c3c', '#3498db', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c', '#95a5a6']);
+
+        // Categorize file by extension
+        function categorizeFile(extension) {
+            const ext = extension.toLowerCase();
+            if (['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.svg', '.ico', '.webp'].includes(ext)) return 'image';
+            if (['.mp4', '.avi', '.mov', '.mkv', '.wmv', '.flv', '.webm'].includes(ext)) return 'video';
+            if (['.pdf', '.doc', '.docx', '.txt', '.rtf', '.odt', '.xls', '.xlsx', '.ppt', '.pptx'].includes(ext)) return 'document';
+            if (['.js', '.py', '.java', '.cpp', '.c', '.h', '.cs', '.php', '.rb', '.go', '.rs', '.ts', '.html', '.css', '.json', '.xml', '.yaml', '.yml'].includes(ext)) return 'code';
+            if (['.zip', '.rar', '.7z', '.tar', '.gz', '.bz2', '.xz'].includes(ext)) return 'archive';
+            if (['.mp3', '.wav', '.flac', '.aac', '.ogg', '.wma', '.m4a'].includes(ext)) return 'audio';
+            return 'other';
+        }
+
+        // Format bytes to human readable
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // Convert flat file list to hierarchical structure
+        function buildHierarchy(files) {
+            const root = {
+                name: 'root',
+                children: []
+            };
+
+            const pathMap = new Map();
+            pathMap.set('', root);
+
+            files.forEach(file => {
+                const pathParts = file.path.split('/').filter(p => p);
+                let currentPath = '';
+
+                for (let i = 0; i < pathParts.length; i++) {
+                    const part = pathParts[i];
+                    const parentPath = currentPath;
+                    currentPath = currentPath ? `${currentPath}/${part}` : part;
+
+                    if (!pathMap.has(currentPath)) {
+                        const isFile = i === pathParts.length - 1;
+                        const node = {
+                            name: part,
+                            path: currentPath,
+                            ...(isFile ? {
+                                size: file.size,
+                                extension: file.extension,
+                                filename: file.filename,
+                                timestamp_readable: file.timestamp_readable,
+                                category: categorizeFile(file.extension)
+                            } : {
+                                children: []
+                            })
+                        };
+
+                        const parent = pathMap.get(parentPath);
+                        if (parent && parent.children) {
+                            parent.children.push(node);
+                        }
+                        pathMap.set(currentPath, node);
+                    }
+                }
+            });
+
+            return root;
+        }
+
+        // Draw treemap
+        function drawTreemap(data) {
+            svg.selectAll("*").remove();
+
+            const hierarchy = buildHierarchy(data);
+            
+            const root = d3.hierarchy(hierarchy)
+                .sum(d => d.size || 0)
+                .sort((a, b) => b.value - a.value);
+
+            const treemap = d3.treemap()
+                .size([width, height])
+                .paddingTop(15)
+                .paddingRight(2)
+                .paddingInner(2)
+                .round(true);
+
+            treemap(root);
+
+            const nodes = svg.selectAll("g")
+                .data(root.leaves())
+                .join("g")
+                .attr("transform", d => `translate(${d.x0},${d.y0})`);
+
+            nodes.append("rect")
+                .attr("class", "node")
+                .attr("width", d => d.x1 - d.x0)
+                .attr("height", d => d.y1 - d.y0)
+                .attr("fill", d => colorScale(d.data.category || 'other'))
+                .on("mouseover", function(event, d) {
+                    tooltip.style("display", "block")
+                        .html(`
+                            <strong>${d.data.filename}</strong><br>
+                            Path: ${d.data.path}<br>
+                            Size: ${formatBytes(d.data.size)}<br>
+                            Type: ${d.data.extension}<br>
+                            ${d.data.timestamp_readable ? `Date: ${d.data.timestamp_readable}` : ''}
+                        `);
+                })
+                .on("mousemove", function(event) {
+                    tooltip.style("left", (event.pageX + 10) + "px")
+                        .style("top", (event.pageY + 10) + "px");
+                })
+                .on("mouseout", function() {
+                    tooltip.style("display", "none");
+                });
+
+            nodes.append("text")
+                .attr("class", "node-label")
+                .attr("x", 3)
+                .attr("y", 15)
+                .text(d => {
+                    const width = d.x1 - d.x0;
+                    const height = d.y1 - d.y0;
+                    if (width > 50 && height > 20) {
+                        return d.data.filename;
+                    }
+                    return '';
+                });
+
+            // Display stats
+            const totalSize = d3.sum(data, d => d.size);
+            const totalFiles = data.length;
+            const avgSize = totalSize / totalFiles;
+
+            d3.select("#stats").html(`
+                <p><strong>Total Files:</strong> ${totalFiles.toLocaleString()}</p>
+                <p><strong>Total Size:</strong> ${formatBytes(totalSize)}</p>
+                <p><strong>Average File Size:</strong> ${formatBytes(avgSize)}</p>
+            `);
+        }
+
+        // File input handler
+        document.getElementById('fileInput').addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const data = JSON.parse(e.target.result);
+                        drawTreemap(data);
+                    } catch (error) {
+                        alert('Error parsing JSON file: ' + error.message);
+                    }
+                };
+                reader.readAsText(file);
+            }
+        });
+
+        // Optional: Load a default file if it exists
+        // Uncomment and modify the path if you want to auto-load
+        /*
+        fetch('files_scan_results.json')
+            .then(response => response.json())
+            .then(data => drawTreemap(data))
+            .catch(error => console.log('No default file found'));
+        */
+    </script>
+</body>
+</html>
