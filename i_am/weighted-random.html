@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weighted Random Selection</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(90deg, #d3700c 0%, #273e83 100%);
+            min-height: 100vh;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+            width: 100%;
+            padding: 40px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .description {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        input[type="number"] {
+            flex: 1;
+            min-width: 100px;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        input[type="number"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        button {
+            padding: 10px 24px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s;
+            white-space: nowrap;
+        }
+
+        button:hover {
+            background: #5568d3;
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        .results {
+            background: #f5f7fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .results h2 {
+            color: #333;
+            font-size: 16px;
+            margin-bottom: 15px;
+        }
+
+        .result-item {
+            background: white;
+            padding: 12px 16px;
+            margin-bottom: 8px;
+            border-radius: 6px;
+            border-left: 4px solid #667eea;
+            font-size: 16px;
+            color: #333;
+        }
+
+        .result-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .stats {
+            background: #f5f7fa;
+            border-radius: 8px;
+            padding: 20px;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .stats p {
+            margin-bottom: 8px;
+        }
+
+        .stats strong {
+            color: #333;
+        }
+
+        #iam {
+            color: white;
+        }
+
+        #youword {
+            color: white;
+        }
+
+        #content {
+            font-size: x-large;
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+        }
+        .wrapper {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-items: center;
+            align-items: center;
+            padding: 20%;
+        }
+        .right {
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+    <div class="wrapper">
+        <div id="content">
+            <div><span>I</span> <span id="iam"></span></div><div class="right"><span id="youword">You</span> <span id="you"></span></div>
+        </div>
+    </div>
+    <!-- <div class="container">
+        <h1>Weighted Random Selection</h1>
+        <p class="description">Generate random words based on their frequency weights</p>
+
+        <div class="controls">
+            <input type="number" id="selectionCount" min="1" max="100" value="5" placeholder="Number of selections">
+            <button onclick="generateSelections()">Generate</button>
+        </div>
+
+        <div class="results" id="resultsContainer" style="display: none;">
+            <h2>Random Selections:</h2>
+            <div id="resultsList"></div>
+        </div>
+
+        <div class="stats">
+            <p><strong>Total unique words:</strong> <span id="totalWords">0</span></p>
+            <p><strong>Total weight:</strong> <span id="totalWeight">0</span></p>
+            <p><strong>Most common:</strong> <span id="mostCommon">-</span></p>
+        </div>
+    </div> -->
+
+    <script>
+        // Word frequency data
+        const wordData = {'am': 365, 'should': 11, 'mean': 105, 'hope': 35, 'think': 107, 'want': 56, 'just': 50, 'forgot': 11, 'can': 43, 'was': 80, 'miss': 82, 'wish': 9, 'don’t': 85, 'fell': 13, 'love': 185, 'still': 15, 'didn’t': 16, 'see': 40, 'thought': 13, 'misunderstood': 3, 'guess': 17, 'went': 13, 'spent': 2, 'will': 101, 'did': 10, 'figured': 8, 'would': 83, 'made': 7, 'had': 35, 'like': 25, 'might': 11, 'believe': 2, 'changed': 2, 'know': 28, 'remember': 6, 'also': 48, 'took': 9, 'wanted': 10, 'heard': 1, 'LOVE': 1, 'find': 2, 'now': 2, 'said': 2, 'really': 33, 'probably': 3, 'have': 56, 'feel': 12, 'got': 25, 'need': 6, 'can’t': 22, 'meet': 1, 'bring': 2, 'already': 3, 'certainly': 1, 'assumed': 1, 'do': 18, 'stopped': 1, 'tell': 2, 'plan': 2, 'get': 26, 'only': 1, 'wished': 1, 'refuse': 1, 'try': 2, 'mis': 2, 'book': 2, 'sent': 6, 'were': 1, 'brought': 1, 'kind': 1, 'hadn’t': 1, 'seriously': 1, 'haven': 1, 'felt': 4, 'actually': 1, 'go': 3, 'walked': 1, 'liked': 5, 'paint': 1, 'won': 1, 'told': 4, 'texted': 3, 'meant': 5, 'kinda': 3, 'wonder': 2, 'tried': 3, 'even': 1, 'struggled': 1, 'haven’t': 2, 'could': 8, 'wrote': 1, 'speak': 1, 'registered': 1, 'added': 3, 'take': 2, 'saw': 6, 'broke': 1, 'dived': 1, 'wake': 1, 'left': 1, 'transferred': 1, 'came': 4, 'understand': 1, 'missed': 2, 'maybe': 1, 'expect': 1, 'managed': 2, 'qualifies': 1, 'heads': 1, 'once': 1, 'didn': 1, 'needed': 2, 'join': 2, 'stayed': 2, 'looked': 2, 'decided': 1, 'kept': 1, 'slept': 2, 'forwarded': 1, 'totally': 6, 'pulled': 1, 'cleaned': 1, 'tied': 1, 'met': 3, 'definitely': 2, 'restarted': 1, 'agree': 13, 'say': 3, 'give': 1, 'woke': 2, 'couldn’t': 5, 'stick': 1, 'invest': 1, 'discovered': 1, 'ran': 1, 'kiss': 1, 'yours': 2, 'planned': 1, 'never': 1, 'expected': 2, 'wasn’t': 1, 'asked': 4, 'ask': 1, 'write': 1, 'halemba': 3, 'aggree': 1, 'ever': 1, 'packed': 1, 'help': 1, 'thinks': 1, 'feared': 1, 'at': 1, 'immediately': 2, 'knew': 1, 'fucking': 1, 'curious': 1, 'play': 1, 'show': 2, 'congratulate': 1, 'Have': 1, 'won’t': 1, 'come': 4, 'end': 1, 'handed': 1, 'booked': 1, 'used': 1, 'wear': 1, 'look': 1, 'forget': 1, 'paid': 1, 'recommend': 1, 'call': 2, 'learned': 1, 'als': 1, 'checked': 2, 'found': 3, 'swear': 1, 'definetley': 1, 'sign': 1, 'called': 1, 'moved': 1, 'pointed': 1, 'signed': 1, 'ended': 1, 'share': 1, 'prepared': 1, 'survived': 1, 'technically': 1, 'put': 1, 'talked': 1, 'claimed': 1, 'worked': 1, 'gained': 1};
+        const youData = {'are': 52, 'have': 35, 'a': 7, 'will': 9, 'can': 61, 'really': 3, 'were': 7, 'talk': 2, 'feel': 10, 'arrive': 1, 'went': 1, 'spent': 1, 'too': 57, 'tired': 1, 'excited': 2, 'in': 11, 'think': 7, 'today': 7, 'Roxanne': 11, 'baby': 1, 'keeping': 1, 'my': 18, 'appointment': 1, 'and': 40, 'already': 3, 'won': 1, 'doing': 22, 'wanted': 2, 'moaning': 1, 'to': 6, 'for': 9, 'during': 1, 'want': 17, 'add': 2, 'like': 7, 'back': 5, 'going': 1, 'find': 3, 'still': 14, 'up': 39, 'would': 3, 'out': 3, 'away': 1, 'extremely': 1, 'so': 26, 'do': 8, 'even': 3, 'know': 5, 'this': 6, 'off': 1, 'okay': 6, 'send': 2, 'danish': 1, 'shaking': 1, 'how': 1, 'wanna': 1, 'saw': 2, 'that': 4, 'asking': 1, 'the': 9, 'leave': 2, 'remember': 5, 'afterwards': 1, 'sleeping': 1, 'good': 1, 'hanging': 1, 'did': 4, 'need': 9, 'get': 7, 'yoo': 1, 'jewish': 1, 'go': 7, 'make': 1, 'arriving': 2, 'with': 4, 'made': 4, 'lend': 1, 'feeling': 15, 'outside': 1, 'mean': 6, 'step': 1, 'could': 4, 'redoing': 1, 'one': 1, 'leaving': 1, 'laying': 1, 'described': 1, 'took': 1, 'update': 1, 'awake': 4, 'texted': 1, 'create': 1, 'at': 4, 'should': 3, 'now': 2, 'experience': 1, 'try': 4, 'as': 12, 'had': 8, 'there': 3, 'present': 1, 'connect': 1, 'very': 2, 'might': 1, 'connected': 1, 'spell': 1, 'ready': 2, 'able': 1, 'some': 3, 'tried': 1, 'bring': 2, 'experienced': 1, 'read': 2, 'but': 2, 'gave': 2, 'told': 1, 'paler': 1, 'sexy': 1, 'both': 2, 'hear': 2, 'safe': 1, 'more': 1, 'here': 3, 'input': 1, 'please': 4, 'listen': 1, 'dare': 1, 'use': 1, 'soon': 3, 'probably': 1, 'survive': 1, 'me': 1, 'from': 1, 'guys': 3, 'again': 4, 'share': 1, 'suddenly': 1, 'maybe': 2, 'travel': 1, 'crazy': 1, 'can’t': 2, 'envision': 1, 'describe': 1, 'end': 3, 'on': 4, 'evening': 1, 'meeting': 1, 'sent': 4, 'next': 1, 'night': 2, 'anyways': 4, 'alive': 1, 'interviewed': 1, 'just': 2, 'check': 2, 'wont': 1, 'preparing': 1, 'planing': 1, 'see': 4, 'earlier': 3, 'about': 1, 'then': 2, 'return': 1, 'joking': 1, 'getting': 2, 'didn’t': 5, 'hand': 1, 'manage': 1, 'day': 1, 'later': 3, 'meant': 2, 'cum': 1, 'online': 1, 'Leberk': 1, 'seen': 1, 'focus': 1, 'sleep': 6, 'is': 1, 'suck': 1, 'kissed': 1, 'got': 3, 'when': 2, 'though': 1, 'intensely': 1, 'after': 3, 'by': 1, 'cheating': 1, 'constantly': 1, 'look': 1, 'right': 2, 'tease': 1, 'down': 1, 'never': 1, 'hm': 1, 'slept': 1, 'over': 1, 'likewise': 1, 'said': 2, 'notice': 1, 'stay': 2, 'also': 1, 'rather': 1, 'be': 1, 'traveling': 1, 'prefer': 2, 'passing': 1, 'flying': 1, 'settled': 1, 'ever': 2, 'give': 1, 'move': 1, 'covered': 1, 'all': 1, 'parents': 1, 'pay': 1, 'increase': 1, 'don’t': 1, 'quickly': 1, 'further': 1, 'if': 1, 'plan': 1, 'air': 1, 'say': 2, 'hike': 1, 'book': 1};
+
+        /**
+         * Performs weighted random selection from the word data
+         * @param {number} count - Number of items to select
+         * @returns {Array} Array of randomly selected words
+         */
+        function weightedRandomSelection(count) {
+            const words = Object.keys(wordData);
+            const weights = Object.values(wordData);
+            const totalWeight = weights.reduce((a, b) => a + b, 0);
+
+            const selections = [];
+
+            for (let i = 0; i < count; i++) {
+                let random = Math.random() * totalWeight;
+                let sum = 0;
+
+                for (let j = 0; j < words.length; j++) {
+                    sum += weights[j];
+                    if (random <= sum) {
+                        selections.push(words[j]);
+                        break;
+                    }
+                }
+            }
+
+            return selections;
+        }
+
+        function weightedRandomSelectionYou(count) {
+            const words = Object.keys(youData);
+            const weights = Object.values(youData);
+            const totalWeight = weights.reduce((a, b) => a + b, 0);
+
+            const selections = [];
+
+            for (let i = 0; i < count; i++) {
+                let random = Math.random() * totalWeight;
+                let sum = 0;
+
+                for (let j = 0; j < words.length; j++) {
+                    sum += weights[j];
+                    if (random <= sum) {
+                        selections.push(words[j]);
+                        break;
+                    }
+                }
+            }
+
+            return selections;
+        }
+
+        /**
+         * Generate and display random selections
+         */
+        function generateSelections() {
+            const count = parseInt(document.getElementById('selectionCount').value) || 5;
+            const selections = weightedRandomSelection(count);
+
+            // Display results
+            const resultsList = document.getElementById('resultsList');
+            resultsList.innerHTML = selections
+                .map((word, index) => `<div class="result-item">${index + 1}. ${word}</div>`)
+                .join('');
+
+            document.getElementById('resultsContainer').style.display = 'block';
+        }
+
+        function setIAM() {
+            const word = weightedRandomSelection(1);
+            document.getElementById("iam").innerHTML = word;
+
+            setTimeout(setIAM, 500);
+        }
+
+        function setYOUARE() {
+            const word = weightedRandomSelectionYou(1);
+            document.getElementById("you").innerHTML = word;
+
+            setTimeout(setYOUARE, 700);
+        }
+
+        // Initialize on page load
+        window.addEventListener('load', () => {
+            setIAM();
+            setTimeout(setYOUARE, 350);
+        });
+
+        // // Allow Enter key to generate
+        // document.getElementById('selectionCount').addEventListener('keypress', (e) => {
+        //     if (e.key === 'Enter') generateSelections();
+        // });
+
+        
+    </script>
+</body>
+</html>
